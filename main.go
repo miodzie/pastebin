@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 	"unicode"
-
-	"github.com/gorilla/mux"
 )
 
 // TODO: refactor to using Go's route parameter stuff. not released yet
@@ -45,13 +43,7 @@ func main() {
 		}
 	}()
 
-	r := mux.NewRouter()
-	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			w.Write([]byte("post only"))
-			return
-		}
+    http.HandleFunc("POST /", func(w http.ResponseWriter, r *http.Request) {
 		id := babble()
 		defer r.Body.Close()
 		body, err := io.ReadAll(r.Body)
@@ -67,38 +59,39 @@ func main() {
 		lock.Unlock()
 		w.Write([]byte(id))
 		log.Printf("new paste id: %s content: %s", id, body)
-	})
-	r.HandleFunc("/{id}", func(w http.ResponseWriter, r *http.Request) {
-		vars := mux.Vars(r)
-		id, ok := vars["id"]
-		if !ok {
+    })
+	http.HandleFunc("GET /{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if id == "" {
 			w.WriteHeader(http.StatusUnprocessableEntity)
 			w.Write([]byte("no id supplied"))
 			log.Println("id not supplied")
 			return
 		}
 
-		if r.Method == http.MethodGet {
-			if paste, ok := pastes[id]; ok {
-				w.Write([]byte(paste))
-				log.Printf("id: %s found and delivered\n", id)
-				return
-			} else {
-				w.WriteHeader(http.StatusNotFound)
-				w.Write([]byte("paste not found"))
-				log.Printf("id: %s not found\n", id)
-				return
-			}
-		}
-
-		if r.Method == http.MethodDelete {
-			delete(pastes, id)
-			log.Printf("id: %s deleted\n", id)
+		if paste, ok := pastes[id]; ok {
+			w.Write([]byte(paste))
+			log.Printf("id: %s found and delivered\n", id)
 			return
 		}
+
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("paste not found"))
+		log.Printf("id: %s not found\n", id)
+	})
+	http.HandleFunc("DELETE /{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		if id == "" {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			w.Write([]byte("no id supplied"))
+			log.Println("id not supplied")
+			return
+		}
+		delete(pastes, id)
+		log.Printf("id: %s deleted\n", id)
 	})
 	log.Printf("simple paste bin started on port %s\n", *port)
-	log.Fatal(http.ListenAndServe(":"+*port, r))
+	log.Fatal(http.ListenAndServe(":"+*port, nil))
 }
 
 var words = loadWords()
