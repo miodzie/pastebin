@@ -13,18 +13,16 @@ import (
 	"unicode"
 )
 
-// TODO: refactor to using Go's route parameter stuff. not released yet
 // TODO: custom expire times, maybe as a flag
 
-var port = flag.String("port", "4242", "listen port")
+var (
+	port = flag.String("port", "4242", "listen port")
 
-var pastes = map[string]string{}
-
-var expireTime = 2 * time.Minute
-
-var expireTracker = map[string]time.Time{}
-
-var lock sync.Mutex
+	pastes        = map[string]string{}
+	expireTime    = 2 * time.Minute
+	expireTracker = map[string]time.Time{}
+	lock          sync.Mutex
+)
 
 func main() {
 
@@ -43,7 +41,7 @@ func main() {
 		}
 	}()
 
-    http.HandleFunc("POST /", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("POST /", func(w http.ResponseWriter, r *http.Request) {
 		id := babble()
 		defer r.Body.Close()
 		body, err := io.ReadAll(r.Body)
@@ -59,7 +57,7 @@ func main() {
 		lock.Unlock()
 		w.Write([]byte(id))
 		log.Printf("new paste id: %s content: %s", id, body)
-    })
+	})
 	http.HandleFunc("GET /{id}", func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
 		if id == "" {
