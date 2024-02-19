@@ -15,28 +15,36 @@ import (
 
 // TODO: custom expire times, maybe as a flag
 
+type Lock struct{ sync.Mutex }
+
+func (m *Lock) Within(f func()) {
+	m.Lock()
+	defer m.Unlock()
+	f()
+}
+
 var (
 	port = flag.String("port", "4242", "listen port")
 
 	pastes        = map[string]string{}
 	expireTime    = 2 * time.Minute
 	expireTracker = map[string]time.Time{}
-	lock          sync.Mutex
+	lock          Lock
 )
 
 func main() {
 
 	go func() {
 		for {
-			lock.Lock()
-			for id, expire := range expireTracker {
-				if expire.Before(time.Now()) {
-					delete(pastes, id)
-					delete(expireTracker, id)
-					log.Printf("id: %s expired\n", id)
+			lock.Within(func() {
+				for id, expire := range expireTracker {
+					if expire.Before(time.Now()) {
+						delete(pastes, id)
+						delete(expireTracker, id)
+						log.Printf("id: %s expired\n", id)
+					}
 				}
-			}
-			lock.Unlock()
+			})
 			time.Sleep(time.Second)
 		}
 	}()
@@ -51,10 +59,10 @@ func main() {
 			w.Write([]byte(err.Error()))
 			return
 		}
-		lock.Lock()
-		pastes[id] = string(body)
-		expireTracker[id] = time.Now().Add(expireTime)
-		lock.Unlock()
+		lock.Within(func() {
+			pastes[id] = string(body)
+			expireTracker[id] = time.Now().Add(expireTime)
+		})
 		w.Write([]byte(id))
 		log.Printf("new paste id: %s content: %s", id, body)
 	})
