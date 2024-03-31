@@ -14,6 +14,9 @@ import (
 )
 
 // TODO: custom expire times, maybe as a flag
+// TODO: Single Use flag
+// TODO: Minimal UI
+// TODO: Throttle
 
 type Lock struct{ sync.Mutex }
 
@@ -33,6 +36,7 @@ var (
 )
 
 func main() {
+    flag.Parse()
 
 	go func() {
 		for {
